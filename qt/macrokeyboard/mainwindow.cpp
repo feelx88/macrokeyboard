@@ -83,6 +83,8 @@ struct MainWindowPrivate
       {
           _this->ui->comboBox->addItem(port.portName());
       }
+
+      _this->ui->comboBox->setCurrentText(serialPortName);
     }
 
     void initDialogButtons()
