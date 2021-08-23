@@ -109,7 +109,6 @@ struct MainWindowPrivate
     void initCommandsTable()
     {
       _this->ui->tableWidget->setHorizontalHeaderLabels({"Input", "Command"});
-      _this->ui->tableWidget->resizeColumnsToContents();
 
       for (auto [row, command] = std::tuple{0, commands.begin()}; command != commands.end(); ++row, ++command)
       {
@@ -117,6 +116,8 @@ struct MainWindowPrivate
         _this->ui->tableWidget->setItem(row, 0, new QTableWidgetItem(command.key()));
         _this->ui->tableWidget->setItem(row, 1, new QTableWidgetItem(command.value().toString()));
       }
+
+      _this->ui->tableWidget->resizeColumnsToContents();
 
       QObject::connect(_this->ui->pushButton, &QPushButton::pressed, _this, [=]{
         _this->ui->tableWidget->insertRow(_this->ui->tableWidget->rowCount());
