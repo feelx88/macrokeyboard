@@ -4,6 +4,11 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+
+    a.setApplicationName("macrokeyboard");
+    a.setOrganizationName("feelx88");
+    a.setOrganizationDomain("feelx88.de");
+
     MainWindow w;
 
     return a.exec();

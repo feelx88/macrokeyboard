@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
         <file>input-keyboard.svg</file>
+        <file>input-keyboard.png</file>
     </qresource>
 </RCC>
