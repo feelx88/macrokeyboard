@@ -17,43 +17,31 @@ struct MainWindowPrivate
 {
     MainWindow *_this;
     QSettings settings;
-    QSystemTrayIcon *sysTrayIcon;
     QSerialPort *serialPort;
+    QSystemTrayIcon *sysTrayIcon;
     QString serialPortName;
     QVariantMap commands;
 
     MainWindowPrivate(MainWindow *_this)
       : _this(_this),
-        serialPort(new QSerialPort(_this))
+        serialPort(new QSerialPort(_this)),
+        sysTrayIcon(new QSystemTrayIcon(QIcon(":/input-keyboard.png"), _this))
     {}
 
-    void createSysTrayIcon()
+    void initConfig()
     {
-      sysTrayIcon = new QSystemTrayIcon(QIcon(":/input-keyboard.png"), _this);
-      sysTrayIcon->show();
-
-      QObject::connect(sysTrayIcon, &QSystemTrayIcon::activated, _this, [=](QSystemTrayIcon::ActivationReason reason) {
-          if (reason == QSystemTrayIcon::DoubleClick)
-          {
-              _this->show();
-          }
-      });
-
-      QMenu *menu = new QMenu(_this);
-      sysTrayIcon->setContextMenu(menu);
-      menu->addAction("Settings", _this, &QWidget::show);
-      menu->addAction("Quit", _this, &QApplication::exit);
+      serialPortName = settings.value(SETTINGS_KEY_PORT, QVariant()).toString();
+      commands = settings.value(SETTINGS_KEY_COMMANDS, QVariant()).toMap();
     }
 
-    void fillSerialPortsCombo()
+    void initSerialPort()
     {
-      _this->ui->comboBox->clear();
-
-      QList<QSerialPortInfo> serialPorts = QSerialPortInfo::availablePorts();
-      for (const auto &port : qAsConst(serialPorts))
-      {
-          _this->ui->comboBox->addItem(port.portName());
-      }
+      QObject::connect(serialPort, &QSerialPort::readyRead, _this, [=]{
+        for(auto &part : serialPort->readAll().split('\n'))
+        {
+          handleCommand(part.trimmed());
+        }
+      });
     }
 
     void connectSerialPort()
@@ -69,7 +57,71 @@ struct MainWindowPrivate
       serialPort->open(QSerialPort::ReadOnly);
     }
 
-    void pressKey(const QString &key)
+    void initSysTrayIcon()
+    {
+      sysTrayIcon->show();
+
+      QObject::connect(sysTrayIcon, &QSystemTrayIcon::activated, _this, [=](QSystemTrayIcon::ActivationReason reason) {
+          if (reason == QSystemTrayIcon::DoubleClick)
+          {
+              _this->show();
+          }
+      });
+
+      QMenu *menu = new QMenu(_this);
+      sysTrayIcon->setContextMenu(menu);
+      menu->addAction("Settings", _this, &QWidget::show);
+      menu->addAction("Quit", _this, &QApplication::exit);
+    }
+
+    void initSerialPortsCombo()
+    {
+      _this->ui->comboBox->clear();
+
+      QList<QSerialPortInfo> serialPorts = QSerialPortInfo::availablePorts();
+      for (const auto &port : qAsConst(serialPorts))
+      {
+          _this->ui->comboBox->addItem(port.portName());
+      }
+    }
+
+    void initDialogButtons()
+    {
+      QObject::connect(_this->ui->buttonBox, &QDialogButtonBox::accepted, _this, [&]{
+        QString port = _this->ui->comboBox->currentText();
+        serialPortName = port;
+
+        commands.clear();
+        for (int row = 0; row < _this->ui->tableWidget->rowCount(); ++row)
+        {
+          commands.insert(_this->ui->tableWidget->item(row, 0)->text(), _this->ui->tableWidget->item(row, 1)->text());
+        }
+
+        settings.setValue(SETTINGS_KEY_PORT, serialPortName);
+        settings.setValue(SETTINGS_KEY_COMMANDS, commands);
+        connectSerialPort();
+      });
+      QObject::connect(_this->ui->buttonBox, &QDialogButtonBox::rejected, _this, &QWidget::close);
+    }
+
+    void initCommandsTable()
+    {
+      _this->ui->tableWidget->setHorizontalHeaderLabels({"Input", "Command"});
+      _this->ui->tableWidget->resizeColumnsToContents();
+
+      for (auto [row, command] = std::tuple{0, commands.begin()}; command != commands.end(); ++row, ++command)
+      {
+        _this->ui->tableWidget->insertRow(row);
+        _this->ui->tableWidget->setItem(row, 0, new QTableWidgetItem(command.key()));
+        _this->ui->tableWidget->setItem(row, 1, new QTableWidgetItem(command.value().toString()));
+      }
+
+      QObject::connect(_this->ui->pushButton, &QPushButton::pressed, _this, [=]{
+        _this->ui->tableWidget->insertRow(_this->ui->tableWidget->rowCount());
+      });
+    }
+
+    void handleCommand(const QString &key)
     {
       if (key.isEmpty())
       {
@@ -89,51 +141,17 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow),
     _impl(new MainWindowPrivate(this))
 {
-    _impl->serialPortName = _impl->settings.value(SETTINGS_KEY_PORT, QVariant()).toString();
-    _impl->commands = _impl->settings.value(SETTINGS_KEY_COMMANDS, QVariant()).toMap();
+    _impl->initConfig();
+    _impl->initSerialPort();
     _impl->connectSerialPort();
 
     ui->setupUi(this);
     setWindowIcon(QIcon(":/input-keyboard.png"));
-    ui->tableWidget->setHorizontalHeaderLabels({"Input", "Command"});
 
-    _impl->createSysTrayIcon();
-    _impl->fillSerialPortsCombo();
-
-    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, [&]{
-      QString port = ui->comboBox->currentText();
-      _impl->serialPortName = port;
-
-      _impl->commands.clear();
-      for (int row = 0; row < ui->tableWidget->rowCount(); ++row)
-      {
-        _impl->commands.insert(ui->tableWidget->item(row, 0)->text(), ui->tableWidget->item(row, 1)->text());
-      }
-
-      _impl->settings.setValue(SETTINGS_KEY_PORT, _impl->serialPortName);
-      _impl->settings.setValue(SETTINGS_KEY_COMMANDS, _impl->commands);
-      _impl->connectSerialPort();
-    });
-    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &QWidget::close);
-
-    for (auto [row, command] = std::tuple{0, _impl->commands.begin()}; command != _impl->commands.end(); ++row, ++command)
-    {
-      ui->tableWidget->insertRow(row);
-      ui->tableWidget->setItem(row, 0, new QTableWidgetItem(command.key()));
-      ui->tableWidget->setItem(row, 1, new QTableWidgetItem(command.value().toString()));
-    }
-    ui->tableWidget->resizeColumnsToContents();
-
-    connect(ui->pushButton, &QPushButton::pressed, this, [=]{
-      ui->tableWidget->insertRow(ui->tableWidget->rowCount());
-    });
-
-    connect(_impl->serialPort, &QSerialPort::readyRead, this, [=]{
-      for(auto &part : _impl->serialPort->readAll().split('\n'))
-      {
-        _impl->pressKey(part.trimmed());
-      }
-    });
+    _impl->initSysTrayIcon();
+    _impl->initSerialPortsCombo();
+    _impl->initDialogButtons();
+    _impl->initCommandsTable();
 }
 
 MainWindow::~MainWindow()
