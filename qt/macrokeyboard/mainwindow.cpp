@@ -9,6 +9,7 @@
 #include <QDialogButtonBox>
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
+#include <QProcess>
 
 #define SETTINGS_KEY_PORT "port"
 #define SETTINGS_KEY_COMMANDS "commands"
@@ -134,7 +135,7 @@ struct MainWindowPrivate
       auto command = commands.find(key);
       if (command != commands.end())
       {
-        system(command.value().toString().toStdString().c_str());
+        QProcess::execute(command.value().toString());
       }
     }
 };
