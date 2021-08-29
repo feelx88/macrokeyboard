@@ -2,5 +2,7 @@
     <qresource prefix="/">
         <file>input-keyboard.svg</file>
         <file>input-keyboard.png</file>
+        <file>view-refresh.svg</file>
+        <file>view-refresh.png</file>
     </qresource>
 </RCC>

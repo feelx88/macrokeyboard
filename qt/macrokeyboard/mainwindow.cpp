@@ -156,6 +156,10 @@ MainWindow::MainWindow(QWidget *parent) :
     _impl->initSerialPortsCombo();
     _impl->initDialogButtons();
     _impl->initCommandsTable();
+
+    connect(ui->toolButton, &QToolButton::click, this, [&]{
+        _impl->initSerialPortsCombo();
+    });
 }
 
 MainWindow::~MainWindow()
