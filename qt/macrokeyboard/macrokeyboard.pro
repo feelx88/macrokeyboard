@@ -30,13 +30,16 @@ win32 {
 
 SOURCES += \
         main.cpp \
-        mainwindow.cpp
+        mainwindow.cpp \
+    editwindow.cpp
 
 HEADERS += \
-        mainwindow.h
+        mainwindow.h \
+    editwindow.h
 
 FORMS += \
-        mainwindow.ui
+        mainwindow.ui \
+    editwindow.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

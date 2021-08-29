@@ -11,6 +11,8 @@
 #include <QtSerialPort/QSerialPortInfo>
 #include <QProcess>
 
+#include "editwindow.h"
+
 #define SETTINGS_KEY_PORT "port"
 #define SETTINGS_KEY_COMMANDS "commands"
 
@@ -37,7 +39,7 @@ struct MainWindowPrivate
 
     void initSerialPort()
     {
-      QObject::connect(serialPort, &QSerialPort::readyRead, _this, [=]{
+      QObject::connect(serialPort, &QSerialPort::readyRead, _this, [&]{
         for(auto &part : serialPort->readAll().split('\n'))
         {
           handleCommand(part.trimmed());
@@ -62,7 +64,7 @@ struct MainWindowPrivate
     {
       sysTrayIcon->show();
 
-      QObject::connect(sysTrayIcon, &QSystemTrayIcon::activated, _this, [=](QSystemTrayIcon::ActivationReason reason) {
+      QObject::connect(sysTrayIcon, &QSystemTrayIcon::activated, _this, [&](QSystemTrayIcon::ActivationReason reason) {
           if (reason == QSystemTrayIcon::DoubleClick)
           {
               _this->show();
@@ -119,10 +121,34 @@ struct MainWindowPrivate
       }
 
       _this->ui->tableWidget->resizeColumnsToContents();
+      _this->ui->tableWidget->resizeRowsToContents();
 
-      QObject::connect(_this->ui->pushButton, &QPushButton::pressed, _this, [=]{
+      QObject::connect(_this->ui->pushButton, &QPushButton::pressed, _this, [&]{
         _this->ui->tableWidget->insertRow(_this->ui->tableWidget->rowCount());
       });
+    }
+
+    void initEditing()
+    {
+        QObject::connect(_this->ui->tableWidget, &QTableView::doubleClicked, _this, [&]{
+            int row = _this->ui->tableWidget->currentRow();
+
+            if (row < 0 || row >= _this->ui->tableWidget->rowCount())
+            {
+                return;
+            }
+
+            EditWindow *editWindow = new EditWindow(
+                _this->ui->tableWidget->item(row, 0)->text(),
+                _this->ui->tableWidget->item(row, 1)->text(),
+                _this
+            );
+
+            QObject::connect(editWindow, &EditWindow::save, editWindow, [=](const QString &input, const QString &action){
+                _this->ui->tableWidget->setItem(row, 0, new QTableWidgetItem(input));
+                _this->ui->tableWidget->setItem(row, 1, new QTableWidgetItem(action));
+            });
+        });
     }
 
     void handleCommand(const QString &key)
@@ -135,7 +161,11 @@ struct MainWindowPrivate
       auto command = commands.find(key);
       if (command != commands.end())
       {
-        QProcess::execute(command.value().toString());
+        QString commandLines = command.value().toString();
+        for (const auto &commandLine : commandLines.split("\n", QString::SkipEmptyParts))
+        {
+            QProcess::execute(commandLine);
+        }
       }
     }
 };
@@ -156,6 +186,7 @@ MainWindow::MainWindow(QWidget *parent) :
     _impl->initSerialPortsCombo();
     _impl->initDialogButtons();
     _impl->initCommandsTable();
+    _impl->initEditing();
 
     connect(ui->toolButton, &QPushButton::clicked, this, [&]{
         _impl->initSerialPortsCombo();
