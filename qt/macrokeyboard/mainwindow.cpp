@@ -157,7 +157,7 @@ MainWindow::MainWindow(QWidget *parent) :
     _impl->initDialogButtons();
     _impl->initCommandsTable();
 
-    connect(ui->toolButton, &QToolButton::click, this, [&]{
+    connect(ui->toolButton, &QPushButton::clicked, this, [&]{
         _impl->initSerialPortsCombo();
     });
 }
