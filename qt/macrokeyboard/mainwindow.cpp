@@ -161,10 +161,10 @@ struct MainWindowPrivate
       auto command = commands.find(key);
       if (command != commands.end())
       {
-        QString commandLines = command.value().toString();
-        for (const auto &commandLine : commandLines.split("\n", QString::SkipEmptyParts))
+        QStringList commandLines = command.value().toString().split("\n", Qt::SkipEmptyParts);
+        for (const auto &commandLine : qAsConst(commandLines))
         {
-            QProcess::execute(commandLine);
+          QProcess::execute(commandLine, {});
         }
       }
     }
