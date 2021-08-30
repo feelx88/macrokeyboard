@@ -16,6 +16,14 @@
 #define SETTINGS_KEY_PORT "port"
 #define SETTINGS_KEY_COMMANDS "commands"
 
+#if Q_OS_WIN
+  #define COMMANDLINE_INTERPRETER "cmd"
+  #define COMMANDLINE_INTERPRETER_SWITCHES "/c"
+#else
+  #define COMMANDLINE_INTERPRETER "bash"
+  #define COMMANDLINE_INTERPRETER_SWITCHES "-c"
+#endif
+
 struct MainWindowPrivate
 {
     MainWindow *_this;
@@ -161,11 +169,7 @@ struct MainWindowPrivate
       auto command = commands.find(key);
       if (command != commands.end())
       {
-        QStringList commandLines = command.value().toString().split("\n", Qt::SkipEmptyParts);
-        for (const auto &commandLine : qAsConst(commandLines))
-        {
-          QProcess::execute(commandLine, {});
-        }
+        QProcess::execute(COMMANDLINE_INTERPRETER, QStringList() << COMMANDLINE_INTERPRETER_SWITCHES << command.value().toString());
       }
     }
 };
